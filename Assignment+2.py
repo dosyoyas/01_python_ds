@@ -3,7 +3,7 @@
 
 # ---
 # 
-# _You are currently looking at **version 1.1** of this notebook. To download notebooks and datafiles, as well as get help on Jupyter notebooks in the Coursera platform, visit the [Jupyter Notebook FAQ](https://www.coursera.org/learn/python-data-analysis/resources/0dhYG) course resource._
+# _You are currently looking at **version 1.2** of this notebook. To download notebooks and datafiles, as well as get help on Jupyter notebooks in the Coursera platform, visit the [Jupyter Notebook FAQ](https://www.coursera.org/learn/python-data-analysis/resources/0dhYG) course resource._
 # 
 # ---
 
@@ -14,7 +14,7 @@
 # 
 # The columns are organized as # of Summer games, Summer medals, # of Winter games, Winter medals, total # number of games, total # of medals. Use this dataset to answer the questions below.
 
-# In[ ]:
+# In[1]:
 
 import pandas as pd
 
@@ -45,7 +45,7 @@ df.head()
 # 
 # *This function should return a Series.*
 
-# In[ ]:
+# In[2]:
 
 # You should write your whole answer within the function provided. The autograder will call
 # this function and compare the return value against the correct solution value
@@ -64,10 +64,12 @@ answer_zero()
 # 
 # *This function should return a single string value.*
 
-# In[ ]:
+# In[3]:
 
 def answer_one():
-    return "YOUR ANSWER HERE"
+    return str(df[df['Gold'] == df['Gold'].max()].index.values[0])
+
+answer_one()
 
 
 # ### Question 2
@@ -75,10 +77,13 @@ def answer_one():
 # 
 # *This function should return a single string value.*
 
-# In[ ]:
+# In[4]:
 
 def answer_two():
-    return "YOUR ANSWER HERE"
+    maxdif = (df['Gold']-df['Gold.1']).abs().max()
+    return str(df[(df['Gold']-df['Gold.1']).abs() == maxdif].index.values[0])
+
+answer_two()
 
 
 # ### Question 3
@@ -90,21 +95,29 @@ def answer_two():
 # 
 # *This function should return a single string value.*
 
-# In[ ]:
+# In[5]:
 
 def answer_three():
-    return "YOUR ANSWER HERE"
+    golden = df[(df['Gold'] > 0) & df['Gold.1'] > 0]
+    max_ratio = ((golden['Gold']-golden['Gold.1'])/golden['Gold.2']).abs().max()
+    return str(golden[((golden['Gold']-golden['Gold.1'])/golden['Gold.2']).abs() == max_ratio].index.values[0])
+
+answer_three()
 
 
 # ### Question 4
-# Write a function to update the dataframe to include a new column called "Points" which is a weighted value where each gold medal counts for 3 points, silver medals for 2 points, and bronze mdeals for 1 point. The function should return only the column (a Series object) which you created.
+# Write a function that creates a Series called "Points" which is a weighted value where each gold medal (`Gold.2`) counts for 3 points, silver medals (`Silver.2`) for 2 points, and bronze medals (`Bronze.2`) for 1 point. The function should return only the column (a Series object) which you created.
 # 
 # *This function should return a Series named `Points` of length 146*
 
-# In[ ]:
+# In[6]:
 
 def answer_four():
-    return "YOUR ANSWER HERE"
+    df['Points'] = df['Gold.2']*3 + df['Silver.2']*2 + df['Bronze.2']
+    
+    return df['Points']
+
+answer_four()
 
 
 # ## Part 2
@@ -117,27 +130,39 @@ def answer_four():
 # 
 # *This function should return a single string value.*
 
-# In[ ]:
+# In[7]:
 
 census_df = pd.read_csv('census.csv')
 census_df.head()
 
 
-# In[ ]:
+# In[8]:
 
 def answer_five():
-    return "YOUR ANSWER HERE"
+    counties = census_df[census_df['SUMLEV'] == 50][['STNAME', 'CTYNAME']]
+    gr = counties.groupby('STNAME').agg('count')
+    state = gr[gr['CTYNAME'] == gr['CTYNAME'].max()]
+    return str(state.index.values[0])
+
+answer_five()
 
 
 # ### Question 6
-# Only looking at the three most populous counties for each state, what are the three most populous states (in order of highest population to lowest population)?
+# Only looking at the three most populous counties for each state, what are the three most populous states (in order of highest population to lowest population)? Use `CENSUS2010POP`.
 # 
 # *This function should return a list of string values.*
 
-# In[ ]:
+# In[9]:
 
 def answer_six():
-    return "YOUR ANSWER HERE"
+    df = census_df[census_df['SUMLEV'] == 50][['STNAME', 'CENSUS2010POP']]
+    new_df = pd.DataFrame()
+    for s in df['STNAME'].unique():
+        new_df = new_df.append(df[df['STNAME'] == s].sort_values('CENSUS2010POP', ascending=False).head(3))
+    gr = new_df.groupby('STNAME').sum().sort_values('CENSUS2010POP', ascending=False).head(3)
+    return [str(i) for i in gr.index]
+
+answer_six()
 
 
 # ### Question 7
@@ -147,10 +172,32 @@ def answer_six():
 # 
 # *This function should return a single string value.*
 
-# In[ ]:
+# In[42]:
+
+def maxdif(years):
+    maxdif = 0
+    for i in range(len(years)-1):
+        for j in range(i+1, len(years)):
+            dif = abs(years[i]-years[j])
+            if dif > maxdif:
+                maxdif = dif
+    return maxdif
 
 def answer_seven():
-    return "YOUR ANSWER HERE"
+    counties = census_df[census_df['SUMLEV'] == 50][['STNAME', 'CTYNAME',
+                                                     'POPESTIMATE2010',
+                                                     'POPESTIMATE2011',
+                                                     'POPESTIMATE2012',
+                                                     'POPESTIMATE2013',
+                                                     'POPESTIMATE2014',
+                                                     'POPESTIMATE2015']]
+    counties = counties.set_index(['STNAME', 'CTYNAME'])
+    counties['MaxDif'] = counties.apply(maxdif, axis=1)
+    return ', '.join(counties['MaxDif'].idxmax())
+
+    
+
+answer_seven()
 
 
 # ### Question 8
@@ -160,8 +207,19 @@ def answer_seven():
 # 
 # *This function should return a 5x2 DataFrame with the columns = ['STNAME', 'CTYNAME'] and the same index ID as the census_df (sorted ascending by index).*
 
-# In[ ]:
+# In[61]:
 
 def answer_eight():
-    return "YOUR ANSWER HERE"
+    my_df = census_df[(census_df['SUMLEV'] == 50) &
+                      ((census_df['REGION'] == 1) | (census_df['REGION'] == 2)) &
+                      (census_df['CTYNAME'].str.startswith('Washington')) &
+                     (census_df['POPESTIMATE2015'] > census_df['POPESTIMATE2014'])][['STNAME', 'CTYNAME']]
+    return my_df.head()
+
+answer_eight()
+
+
+# In[ ]:
+
+
 
