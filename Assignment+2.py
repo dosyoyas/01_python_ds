@@ -172,7 +172,7 @@ answer_six()
 # 
 # *This function should return a single string value.*
 
-# In[42]:
+# In[64]:
 
 def maxdif(years):
     maxdif = 0
@@ -184,16 +184,16 @@ def maxdif(years):
     return maxdif
 
 def answer_seven():
-    counties = census_df[census_df['SUMLEV'] == 50][['STNAME', 'CTYNAME',
+    counties = census_df[census_df['SUMLEV'] == 50][['CTYNAME',
                                                      'POPESTIMATE2010',
                                                      'POPESTIMATE2011',
                                                      'POPESTIMATE2012',
                                                      'POPESTIMATE2013',
                                                      'POPESTIMATE2014',
                                                      'POPESTIMATE2015']]
-    counties = counties.set_index(['STNAME', 'CTYNAME'])
+    counties = counties.set_index('CTYNAME')
     counties['MaxDif'] = counties.apply(maxdif, axis=1)
-    return ', '.join(counties['MaxDif'].idxmax())
+    return counties['MaxDif'].idxmax()
 
     
 
