@@ -3,19 +3,19 @@
 
 # ---
 # 
-# _You are currently looking at **version 1.2** of this notebook. To download notebooks and datafiles, as well as get help on Jupyter notebooks in the Coursera platform, visit the [Jupyter Notebook FAQ](https://www.coursera.org/learn/python-data-analysis/resources/0dhYG) course resource._
+# _You are currently looking at **version 1.5** of this notebook. To download notebooks and datafiles, as well as get help on Jupyter notebooks in the Coursera platform, visit the [Jupyter Notebook FAQ](https://www.coursera.org/learn/python-data-analysis/resources/0dhYG) course resource._
 # 
 # ---
 
 # # Assignment 3 - More Pandas
-# All questions are weighted the same in this assignment. This assignment requires more individual learning then the last one did - you are encouraged to check out the [pandas documentation](http://pandas.pydata.org/pandas-docs/stable/) to find functions or methods you might not have used yet, or ask questions on [Stack Overflow](http://stackoverflow.com/) and tag them as pandas and python related. And of course, the discussion forums are open for interaction with your peers and the course staff.
+# This assignment requires more individual learning then the last one did - you are encouraged to check out the [pandas documentation](http://pandas.pydata.org/pandas-docs/stable/) to find functions or methods you might not have used yet, or ask questions on [Stack Overflow](http://stackoverflow.com/) and tag them as pandas and python related. And of course, the discussion forums are open for interaction with your peers and the course staff.
 
 # ### Question 1 (20%)
 # Load the energy data from the file `Energy Indicators.xls`, which is a list of indicators of [energy supply and renewable electricity production](Energy%20Indicators.xls) from the [United Nations](http://unstats.un.org/unsd/environment/excel_file_tables/2013/Energy%20Indicators.xls) for the year 2013, and should be put into a DataFrame with the variable name of **energy**.
 # 
 # Keep in mind that this is an Excel file, and not a comma separated values file. Also, make sure to exclude the footer and header information from the datafile. The first two columns are unneccessary, so you should get rid of them, and you should change the column labels so that the columns are:
 # 
-# `['Country', 'Energy Supply', 'Energy Supply per Capita', '% Renewable]`
+# `['Country', 'Energy Supply', 'Energy Supply per Capita', '% Renewable']`
 # 
 # Convert `Energy Supply` to gigajoules (there are 1,000,000 gigajoules in a petajoule). For all countries which have missing data (e.g. data with "...") make sure this is reflected as `np.NaN` values.
 # 
@@ -26,7 +26,13 @@
 # "United Kingdom of Great Britain and Northern Ireland": "United Kingdom",
 # "China, Hong Kong Special Administrative Region": "Hong Kong"```
 # 
-# There are also several countries with parenthesis in their name. Be sure to remove these, e.g. `'Bolivia (Plurinational State of)'` should be `'Bolivia'`.
+# There are also several countries with numbers and/or parenthesis in their name. Be sure to remove these, 
+# 
+# e.g. 
+# 
+# `'Bolivia (Plurinational State of)'` should be `'Bolivia'`, 
+# 
+# `'Switzerland17'` should be `'Switzerland'`.
 # 
 # <br>
 # 
@@ -51,10 +57,64 @@
 # 
 # *This function should return a DataFrame with 20 columns and 15 entries.*
 
-# In[ ]:
+# In[92]:
+
+import pandas as pd
+import re
+
+merged = None
+reduced = None
+
+def replace_names(name, remove_parens_and_numbers=True):
+    replacements = {"Republic of Korea": "South Korea",
+                    "United States of America": "United States",
+                    "United Kingdom of Great Britain and Northern Ireland": "United Kingdom",
+                    "China, Hong Kong Special Administrative Region": "Hong Kong",
+                    "Korea, Rep.": "South Korea", 
+                    "Iran, Islamic Rep.": "Iran",
+                    "Hong Kong SAR, China": "Hong Kong"}
+    if name in replacements.keys():
+        return replacements[name]
+    if remove_parens_and_numbers:
+        if ' (' in name:
+            return name.split(' (')[0]
+        else :
+            return ''.join(c if c not in map(str,range(0,10)) else "" for c in name)
+    return name
+
+def load_merge_reduce():
+    # Load energy DF
+    energy = pd.read_excel('Energy Indicators.xls', sheetname='Energy',
+        skiprows=17, names=['Country', 'Energy Supply', 'Energy Supply per Capita', '% Renewable'],
+        parse_cols=[1, 3, 4, 5], skip_footer=38, na_values='...')
+    # Convert to GJ
+    energy.loc[:, 'Energy Supply'] *= 1e6
+    # Replace country names
+    energy['Country'] = energy.loc[:, 'Country'].apply(replace_names)
+    
+    # Load GDP DF and trim to last 10 years
+    gdp = pd.read_csv('world_bank.csv', header=4).rename(columns={'Country Name': 'Country'})
+    gdp = gdp[list(gdp.columns.values)[:4] + [str(y) for y in range(2006, 2016)]]
+    # Replace only listed names
+    gdp['Country'] = energy.loc[:, 'Country'].apply(replace_names, args=(False,))
+      
+    # Load ScimEm DF
+    ScimEm = pd.read_excel('scimagojr-3.xlsx')
+    
+    
+    # Merge energy and GDP, and then ScimEm
+    merged = pd.merge(energy, gdp, how='inner',on='Country')
+    merged = pd.merge(merged, ScimEm, how='inner',on='Country')
+    
+    # Reduce df to first 15 ranks
+    reduced = merged[(merged['Rank'] < 16)][['Country', 'Rank', 'Documents', 'Citable documents', 'Citations', 'Self-citations', 'Citations per document', 'H index', 'Energy Supply', 'Energy Supply per Capita', '% Renewable', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015']].set_index('Country')
+    return (merged, reduced)
 
 def answer_one():
-    return "ANSWER"
+    merged, reduced = load_merge_reduce()
+    return reduced
+
+answer_one()
 
 
 # ### Question 2 (6.6%)
@@ -62,27 +122,37 @@ def answer_one():
 # 
 # *This function should return a single number.*
 
-# In[1]:
+# In[93]:
 
 get_ipython().run_cell_magic('HTML', '', '<svg width="800" height="300">\n  <circle cx="150" cy="180" r="80" fill-opacity="0.2" stroke="black" stroke-width="2" fill="blue" />\n  <circle cx="200" cy="100" r="80" fill-opacity="0.2" stroke="black" stroke-width="2" fill="red" />\n  <circle cx="100" cy="100" r="80" fill-opacity="0.2" stroke="black" stroke-width="2" fill="green" />\n  <line x1="150" y1="125" x2="300" y2="150" stroke="black" stroke-width="2" fill="black" stroke-dasharray="5,3"/>\n  <text  x="300" y="165" font-family="Verdana" font-size="35">Everything but this!</text>\n</svg>')
 
 
-# In[ ]:
+# In[94]:
 
 def answer_two():
-    return "ANSWER"
+    merged, reduced = load_merge_reduce()
+    return len(merged.index) - len(reduced.index)
 
+answer_two()
+
+
+# <br>
+# 
+# Answer the following questions in the context of only the top 15 countries by Scimagojr Rank (aka the DataFrame returned by `answer_one()`)
 
 # ### Question 3 (6.6%)
-# What are the top 15 countries for average GDP over the last 10 years?
+# What is the average GDP over the last 10 years for each country? (exclude missing values from this calculation.)
 # 
 # *This function should return a Series named `avgGDP` with 15 countries and their average GDP sorted in descending order.*
 
-# In[ ]:
+# In[95]:
 
 def answer_three():
     Top15 = answer_one()
-    return "ANSWER"
+    Top15['avgGDP'] = Top15[[str(y) for y in range(2006, 2016)]].mean(axis=1)
+    return Top15['avgGDP'].order(ascending=False)
+
+answer_three()
 
 
 # ### Question 4 (6.6%)
@@ -90,23 +160,28 @@ def answer_three():
 # 
 # *This function should return a single number.*
 
-# In[ ]:
+# In[109]:
 
 def answer_four():
     Top15 = answer_one()
-    return "ANSWER"
+    sixth_avg = str(list(answer_three().index)[5])
+    return Top15.loc[sixth_avg, '2015'] - Top15.loc[sixth_avg, '2006'] 
+    
+answer_four()
 
 
 # ### Question 5 (6.6%)
-# What is the mean energy supply per capita?
+# What is the mean `Energy Supply per Capita`?
 # 
 # *This function should return a single number.*
 
-# In[ ]:
+# In[111]:
 
 def answer_five():
     Top15 = answer_one()
-    return "ANSWER"
+    return Top15.loc[:, 'Energy Supply per Capita'].mean()
+
+answer_five()
 
 
 # ### Question 6 (6.6%)
@@ -114,11 +189,14 @@ def answer_five():
 # 
 # *This function should return a tuple with the name of the country and the percentage.*
 
-# In[ ]:
+# In[118]:
 
 def answer_six():
     Top15 = answer_one()
-    return "ANSWER"
+    max_percent = Top15.loc[:, '% Renewable'].max()
+    return (Top15[Top15['% Renewable'] == max_percent].index.values[0], max_percent)
+
+answer_six()
 
 
 # ### Question 7 (6.6%)
@@ -127,11 +205,15 @@ def answer_six():
 # 
 # *This function should return a tuple with the name of the country and the ratio.*
 
-# In[ ]:
+# In[136]:
 
 def answer_seven():
     Top15 = answer_one()
-    return "ANSWER"
+    Top15['Citations Ratio'] = Top15['Self-citations'] / Top15['Citations']
+    max_ratio = Top15.loc[:, 'Citations Ratio'].max()
+    return (Top15[Top15['Citations Ratio'] == max_ratio].index.values[0], max_ratio)
+
+answer_seven()
 
 
 # ### Question 8 (6.6%)
@@ -141,14 +223,17 @@ def answer_seven():
 # 
 # *This function should return a single string value.*
 
-# In[ ]:
+# In[150]:
 
 def answer_eight():
     Top15 = answer_one()
-    return "ANSWER"
+    Top15['Population Estimate'] = Top15['Energy Supply'] / Top15['Energy Supply per Capita']
+    return Top15.sort(columns='Population Estimate', ascending=False).iloc[2].name
+
+answer_eight()
 
 
-# ### Question 9
+# ### Question 9 (6.6%)
 # Create a column that estimates the number of citable documents per person. 
 # What is the correlation between the number of citable documents per capita and the energy supply per capita? Use the `.corr()` method, (Pearson's correlation).
 # 
@@ -225,7 +310,7 @@ def answer_eleven():
 # ### Question 12 (6.6%)
 # Cut % Renewable into 5 bins. Group Top15 by the Continent, as well as these new % Renewable bins. How many countries are in each of these groups?
 # 
-# *This function should return a Series with a MultiIndex of `Continent`, then the bins for `% Renewable`. Do not include groups with no countries.*
+# *This function should return a __Series__ with a MultiIndex of `Continent`, then the bins for `% Renewable`. Do not include groups with no countries.*
 
 # In[ ]:
 
@@ -235,9 +320,9 @@ def answer_twelve():
 
 
 # ### Question 13 (6.6%)
-# Convert the Population Estimate series to a string with thousands separator (using commas). Use all significant digits (do not round the results).
+# Convert the Population Estimate series to a string with thousands separator (using commas). Do not round the results.
 # 
-# e.g. 12345678.90 -> 12,345,678.90
+# e.g. 317615384.61538464 -> 317,615,384.61538464
 # 
 # *This function should return a Series `PopEst` whose index is the country name and whose values are the population estimate string.*
 
