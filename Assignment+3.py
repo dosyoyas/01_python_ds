@@ -57,7 +57,7 @@
 # 
 # *This function should return a DataFrame with 20 columns and 15 entries.*
 
-# In[92]:
+# In[1]:
 
 import pandas as pd
 import re
@@ -82,7 +82,7 @@ def replace_names(name, remove_parens_and_numbers=True):
             return ''.join(c if c not in map(str,range(0,10)) else "" for c in name)
     return name
 
-def load_merge_reduce():
+def answer_one():
     # Load energy DF
     energy = pd.read_excel('Energy Indicators.xls', sheetname='Energy',
         skiprows=17, names=['Country', 'Energy Supply', 'Energy Supply per Capita', '% Renewable'],
@@ -94,25 +94,19 @@ def load_merge_reduce():
     
     # Load GDP DF and trim to last 10 years
     gdp = pd.read_csv('world_bank.csv', header=4).rename(columns={'Country Name': 'Country'})
-    gdp = gdp[list(gdp.columns.values)[:4] + [str(y) for y in range(2006, 2016)]]
     # Replace only listed names
-    gdp['Country'] = energy.loc[:, 'Country'].apply(replace_names, args=(False,))
+    gdp['Country'] = gdp.loc[:, 'Country'].apply(replace_names, args=(False,))
       
     # Load ScimEm DF
     ScimEm = pd.read_excel('scimagojr-3.xlsx')
-    
-    
+        
     # Merge energy and GDP, and then ScimEm
-    merged = pd.merge(energy, gdp, how='inner',on='Country')
-    merged = pd.merge(merged, ScimEm, how='inner',on='Country')
-    
+    merged = (energy.set_index('Country').join(gdp.set_index('Country'), how='inner')).join(ScimEm.set_index('Country'), how='inner')
+        
     # Reduce df to first 15 ranks
-    reduced = merged[(merged['Rank'] < 16)][['Country', 'Rank', 'Documents', 'Citable documents', 'Citations', 'Self-citations', 'Citations per document', 'H index', 'Energy Supply', 'Energy Supply per Capita', '% Renewable', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015']].set_index('Country')
-    return (merged, reduced)
-
-def answer_one():
-    merged, reduced = load_merge_reduce()
+    reduced = merged[(merged['Rank'] < 16)][['Rank', 'Documents', 'Citable documents', 'Citations', 'Self-citations', 'Citations per document', 'H index', 'Energy Supply', 'Energy Supply per Capita', '% Renewable', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015']]
     return reduced
+
 
 answer_one()
 
@@ -122,16 +116,41 @@ answer_one()
 # 
 # *This function should return a single number.*
 
-# In[93]:
+# In[2]:
 
 get_ipython().run_cell_magic('HTML', '', '<svg width="800" height="300">\n  <circle cx="150" cy="180" r="80" fill-opacity="0.2" stroke="black" stroke-width="2" fill="blue" />\n  <circle cx="200" cy="100" r="80" fill-opacity="0.2" stroke="black" stroke-width="2" fill="red" />\n  <circle cx="100" cy="100" r="80" fill-opacity="0.2" stroke="black" stroke-width="2" fill="green" />\n  <line x1="150" y1="125" x2="300" y2="150" stroke="black" stroke-width="2" fill="black" stroke-dasharray="5,3"/>\n  <text  x="300" y="165" font-family="Verdana" font-size="35">Everything but this!</text>\n</svg>')
 
 
-# In[94]:
+# In[3]:
+
+import numpy as np
 
 def answer_two():
-    merged, reduced = load_merge_reduce()
-    return len(merged.index) - len(reduced.index)
+        # Load energy DF
+    energy = pd.read_excel('Energy Indicators.xls', sheetname='Energy',
+        skiprows=17, names=['Country', 'Energy Supply', 'Energy Supply per Capita', '% Renewable'],
+        parse_cols=[1, 3, 4, 5], skip_footer=38, na_values='...')
+    # Convert to GJ
+    energy.loc[:, 'Energy Supply'] *= 1e6
+    # Replace country names
+    energy['Country'] = energy.loc[:, 'Country'].apply(replace_names)
+    
+    # Load GDP DF and trim to last 10 years
+    gdp = pd.read_csv('world_bank.csv', header=4).rename(columns={'Country Name': 'Country'})
+    #gdp = gdp[list(gdp.columns.values)[:4] + [str(y) for y in range(2006, 2016)]]
+    # Replace only listed names
+    gdp['Country'] = gdp.loc[:, 'Country'].apply(replace_names, args=(False,))
+      
+    # Load ScimEm DF
+    ScimEm = pd.read_excel('scimagojr-3.xlsx')
+    
+    # Get max entries
+    total_entries = np.sum([len(i) for i in [energy.index, gdp.index, ScimEm.index]])
+    
+    # Merge energy and GDP, and then ScimEm
+    merged = (energy.set_index('Country').join(gdp.set_index('Country'), how='inner')).join(ScimEm.set_index('Country'), how='inner')
+
+    return int(total_entries - len(merged.index))
 
 answer_two()
 
@@ -145,11 +164,11 @@ answer_two()
 # 
 # *This function should return a Series named `avgGDP` with 15 countries and their average GDP sorted in descending order.*
 
-# In[95]:
+# In[4]:
 
 def answer_three():
     Top15 = answer_one()
-    Top15['avgGDP'] = Top15[[str(y) for y in range(2006, 2016)]].mean(axis=1)
+    Top15['avgGDP'] = Top15[['2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015']].mean(numeric_only=True, axis=1)
     return Top15['avgGDP'].order(ascending=False)
 
 answer_three()
@@ -160,12 +179,12 @@ answer_three()
 # 
 # *This function should return a single number.*
 
-# In[109]:
+# In[5]:
 
 def answer_four():
     Top15 = answer_one()
     sixth_avg = str(list(answer_three().index)[5])
-    return Top15.loc[sixth_avg, '2015'] - Top15.loc[sixth_avg, '2006'] 
+    return Top15.loc[sixth_avg, '2015'] - Top15.loc[sixth_avg, '2006']
     
 answer_four()
 
@@ -175,7 +194,7 @@ answer_four()
 # 
 # *This function should return a single number.*
 
-# In[111]:
+# In[6]:
 
 def answer_five():
     Top15 = answer_one()
@@ -189,7 +208,7 @@ answer_five()
 # 
 # *This function should return a tuple with the name of the country and the percentage.*
 
-# In[118]:
+# In[7]:
 
 def answer_six():
     Top15 = answer_one()
@@ -205,7 +224,7 @@ answer_six()
 # 
 # *This function should return a tuple with the name of the country and the ratio.*
 
-# In[136]:
+# In[8]:
 
 def answer_seven():
     Top15 = answer_one()
@@ -223,12 +242,12 @@ answer_seven()
 # 
 # *This function should return a single string value.*
 
-# In[150]:
+# In[9]:
 
 def answer_eight():
     Top15 = answer_one()
-    Top15['Population Estimate'] = Top15['Energy Supply'] / Top15['Energy Supply per Capita']
-    return Top15.sort(columns='Population Estimate', ascending=False).iloc[2].name
+    Top15['PopEst'] = Top15['Energy Supply'] / Top15['Energy Supply per Capita']
+    return Top15.sort(columns='PopEst', ascending=False).iloc[2].name
 
 answer_eight()
 
@@ -241,14 +260,18 @@ answer_eight()
 # 
 # *(Optional: Use the built-in function `plot9()` to visualize the relationship between Energy Supply per Capita vs. Citable docs per Capita)*
 
-# In[ ]:
+# In[10]:
 
 def answer_nine():
     Top15 = answer_one()
-    return "ANSWER"
+    Top15['PopEst'] = Top15['Energy Supply'] / Top15['Energy Supply per Capita']
+    Top15['Citable docs per Capita'] = Top15['Citable documents'] / Top15['PopEst']
+    return Top15['Energy Supply per Capita'].corr(Top15['Citable docs per Capita'])
+
+answer_nine()
 
 
-# In[ ]:
+# In[11]:
 
 def plot9():
     import matplotlib as plt
@@ -260,7 +283,7 @@ def plot9():
     Top15.plot(x='Citable docs per Capita', y='Energy Supply per Capita', kind='scatter', xlim=[0, 0.0006])
 
 
-# In[ ]:
+# In[12]:
 
 #plot9() # Be sure to comment out plot9() before submitting the assignment!
 
@@ -270,11 +293,16 @@ def plot9():
 # 
 # *This function should return a series named `HighRenew` whose index is the country name sorted in ascending order of rank.*
 
-# In[ ]:
+# In[13]:
 
 def answer_ten():
     Top15 = answer_one()
-    return "ANSWER"
+    Renew_avg = Top15['% Renewable'].median()
+    Top15['AboveAvg'] = (Top15['% Renewable'] >= Renew_avg).astype(int)
+    Top15 = Top15.sort(ascending=True, columns='Rank')
+    return Top15['AboveAvg']
+
+answer_ten()
 
 
 # ### Question 11 (6.6%)
@@ -300,11 +328,38 @@ def answer_ten():
 # 
 # *This function should return a DataFrame with index named Continent `['Asia', 'Australia', 'Europe', 'North America', 'South America']` and columns `['size', 'sum', 'mean', 'std']`*
 
-# In[ ]:
+# In[14]:
+
+def top15_with_continents():
+    ContinentDict  = {'China':'Asia', 
+                  'United States':'North America', 
+                  'Japan':'Asia', 
+                  'United Kingdom':'Europe', 
+                  'Russian Federation':'Europe', 
+                  'Canada':'North America', 
+                  'Germany':'Europe', 
+                  'India':'Asia',
+                  'France':'Europe', 
+                  'South Korea':'Asia', 
+                  'Italy':'Europe', 
+                  'Spain':'Europe', 
+                  'Iran':'Asia',
+                  'Australia':'Australia', 
+                  'Brazil':'South America'}
+    Top15 = answer_one().reset_index()
+    Top15['Continent'] = Top15['Country'].replace(ContinentDict)
+    return Top15
+
 
 def answer_eleven():
-    Top15 = answer_one()
-    return "ANSWER"
+    Top15 = top15_with_continents()
+    Top15['PopEst'] = Top15['Energy Supply'] / Top15['Energy Supply per Capita']
+    grouped = Top15[['Continent', 'PopEst']].groupby('Continent').agg(['count', 'sum', 'mean', 'std' ]).rename(columns={'count': 'size'})
+    grouped.columns = grouped.columns.droplevel(0)
+    return grouped
+
+
+answer_eleven()
 
 
 # ### Question 12 (6.6%)
@@ -312,11 +367,16 @@ def answer_eleven():
 # 
 # *This function should return a __Series__ with a MultiIndex of `Continent`, then the bins for `% Renewable`. Do not include groups with no countries.*
 
-# In[ ]:
+# In[15]:
 
 def answer_twelve():
-    Top15 = answer_one()
-    return "ANSWER"
+    Top15 = top15_with_continents()
+    Top15['Renew bins'] = pd.cut(Top15['% Renewable'], 5)
+    grouped = Top15[['Continent', 'Country', 'Renew bins']].groupby(['Continent', 'Renew bins']).agg('count')
+
+    return grouped['Country'].dropna().astype(int)
+
+answer_twelve()
 
 
 # ### Question 13 (6.6%)
@@ -326,18 +386,21 @@ def answer_twelve():
 # 
 # *This function should return a Series `PopEst` whose index is the country name and whose values are the population estimate string.*
 
-# In[ ]:
+# In[16]:
 
 def answer_thirteen():
     Top15 = answer_one()
-    return "ANSWER"
+    Top15['PopEst'] = Top15['Energy Supply'] / Top15['Energy Supply per Capita']
+    return Top15['PopEst'].apply(lambda x: ('{:,}'.format(x)))
+
+answer_thirteen()
 
 
 # ### Optional
 # 
 # Use the built in function `plot_optional()` to see an example visualization.
 
-# In[ ]:
+# In[17]:
 
 def plot_optional():
     import matplotlib as plt
@@ -354,7 +417,12 @@ def plot_optional():
     print("This is an example of a visualization that can be created to help understand the data. This is a bubble chart showing % Renewable vs. Rank. The size of the bubble corresponds to the countries' 2014 GDP, and the color corresponds to the continent.")
 
 
-# In[ ]:
+# In[18]:
 
 #plot_optional() # Be sure to comment out plot_optional() before submitting the assignment!
+
+
+# In[ ]:
+
+
 
